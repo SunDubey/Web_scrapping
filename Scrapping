@@ -11,59 +11,73 @@ data.dropna(subset=['altmetric_id'],inplace=True)
 
 
 try:
-#looping through each altmetric_id
-    records = []
-    for altid in data['altmetric_id']:
+    for n,altid in enumerate(data_2k17['Altmetric_id']):
         #opening the 1 page of altmetricid
-        #print(altid)
-        actual_list=[]
+        records = []
+        print(n,altid)
         count=0
         url = 'https://explorer.altmetric.com/details/%s/twitter/page:1'%int(altid)
-        print(url)
+        #print(url)
         df=urllib.request.urlopen(url).read()
         soup = bs.BeautifulSoup(df, 'html.parser')
+        #scrapping title
         title=soup.find_all('title')
         article_title=title[0].text
+        #citation
+        try:
+            cits = soup.find_all('dl',{'class':'scholarly-citation-counts'})
+            k = cits[0].text
+            citation = re.findall('\d+',k)
+        except Exception as e:
+            citation = 0
+            print(e)
+
+        page_list=[]
         try:
             #looking for number of pages in twitter tab
             check = soup.find_all('div',{'class':'post_pagination top'})[0].find_all('a')
-            page_list = []
             for i in check:
                 page = i.get('href')
+                #print(page)
                 page_list.append(page)
         except:
             number_of_pages=1
-        page_list = []
+        #print(len(page_list))
         number_of_pages=range(1,len(page_list)+1)
+
         page_links=[]
         #creating a list with all links in each tab
         for i in number_of_pages:
             a = url[0:-1]+str(i)
             page_links.append(a)
-        post = soup.find_all('article',{'class':'post twitter'})
-        # iterating through each tweets in a page
-        for tweets in post:
-            tweet_post = tweets.find_all('p')[0].text
-            try:
-                post_time = tweets.find_all('time')[0].text.strip()
-                post_URL = tweets.time.a['href']
-                profile_link=tweets.a['href']
-                profile_name = tweets.find_all('div',{'class':'name'})[0].text
-                display_name = tweets.find_all('div',{'class':'handle'})[0].text
-            except:
-                pass
-            count+=1
-            records.append((altid,count,profile_link,profile_name,display_name,tweet_post,post_time,post_URL,article_title))
-        
-        
+        #print(page_links)
+        for i in page_links:
+            df2=urllib.request.urlopen(i).read()
+            soup2 = bs.BeautifulSoup(df2, 'html.parser')
+            post = soup2.find_all('article',{'class':'post twitter'})
+            for tweets in post:
+                tweet_post = tweets.find_all('p')[0].text
+                #print(tweet_post)
+                try:
+                    post_time = tweets.find_all('time')[0].text.strip()
+                    post_URL = tweets.time.a['href']
+                    profile_link=tweets.a['href']
+                    profile_name = tweets.find_all('div',{'class':'name'})[0].text
+                    display_name = tweets.find_all('div',{'class':'handle'})[0].text
+                except:
+                    pass
+                count+=1
+                records.append((citation,altid,count,profile_link,profile_name,display_name,tweet_post,post_time,post_URL,article_title))
+                
+    if(n%200==0):
+        data_frame= pd.DataFrame(records, columns=['citation','altid','count','profile_link','profile_name','display_name','tweet_post','post_time','post_URL','article_name'])
+        writer = pd.ExcelWriter(r'sarath_2k17_CI.xlsx', engine='openpyxl',options={'strings_to_urls': False})
+        data_frame.to_excel(writer,sheet_name='Sheet_name'+str(n))
+        writer.save()
+        write.close()
+        print(data_frame.shape)
+        records=[]
 
-
-except Exception as e::
+except Exception as e:
     print(e)
     print("end of doc")
-#creating a dataframe with list    
-data_frame= pd.DataFrame(records, columns=['altid','count','profile_link','profile_name','display_name','tweet_post','post_time','post_URL','article_name'])
-#writing the data_frame to csv file
-data_frame.to_csv('actual_data.csv',index = False)
-#checking the shape of the data_frame
-print(data_frame.shape)
