@@ -2,7 +2,7 @@ import bs4 as bs
 import urllib.request
 from langdetect import detect
 import pandas as pd
-
+from openpyxl import Workbook
 #loading the csv file
 data = pd.read_csv('/Users/Sarath/Desktop/term-2/CI/CI_Amila_Group_ProfNa/med/master_copy/med_master_copy.csv')
 
