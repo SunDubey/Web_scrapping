@@ -11,9 +11,10 @@ data.dropna(subset=['altmetric_id'],inplace=True)
 
 
 try:
-    for n,altid in enumerate(data_2k17['Altmetric_id']):
+    records = []
+    for n,altid in enumerate(data['altmetric_id']):
         #opening the 1 page of altmetricid
-        records = []
+
         print(n,altid)
         count=0
         url = 'https://explorer.altmetric.com/details/%s/twitter/page:1'%int(altid)
@@ -23,61 +24,77 @@ try:
         #scrapping title
         title=soup.find_all('title')
         article_title=title[0].text
+        #print(article_title)
         #citation
         try:
             cits = soup.find_all('dl',{'class':'scholarly-citation-counts'})
             k = cits[0].text
             citation = re.findall('\d+',k)
+            #print(citation)
         except Exception as e:
             citation = 0
             print(e)
 
-        page_list=[]
         try:
-            #looking for number of pages in twitter tab
-            check = soup.find_all('div',{'class':'post_pagination top'})[0].find_all('a')
-            for i in check:
-                page = i.get('href')
-                #print(page)
-                page_list.append(page)
+            page_num = soup.find_all('div',{'class':'post_pagination top'})[0].find_all('a')
+            page_list = []    
+            for ele in page_num:
+                tweet_page = ele.get('href')
+                tweet_page = int(tweet_page.split(':')[1][0])
+                page_list.append(tweet_page)
+                page_range = range(1,max(page_list)+1)
+            #print(page_list)   
         except:
-            number_of_pages=1
-        #print(len(page_list))
-        number_of_pages=range(1,len(page_list)+1)
-
-        page_links=[]
-        #creating a list with all links in each tab
-        for i in number_of_pages:
-            a = url[0:-1]+str(i)
-            page_links.append(a)
-        #print(page_links)
-        for i in page_links:
-            df2=urllib.request.urlopen(i).read()
-            soup2 = bs.BeautifulSoup(df2, 'html.parser')
-            post = soup2.find_all('article',{'class':'post twitter'})
-            for tweets in post:
-                tweet_post = tweets.find_all('p')[0].text
-                #print(tweet_post)
-                try:
-                    post_time = tweets.find_all('time')[0].text.strip()
-                    post_URL = tweets.time.a['href']
-                    profile_link=tweets.a['href']
-                    profile_name = tweets.find_all('div',{'class':'name'})[0].text
-                    display_name = tweets.find_all('div',{'class':'handle'})[0].text
-                except:
-                    pass
-                count+=1
-                records.append((citation,altid,count,profile_link,profile_name,display_name,tweet_post,post_time,post_URL,article_title))
-                
-    if(n%200==0):
-        data_frame= pd.DataFrame(records, columns=['citation','altid','count','profile_link','profile_name','display_name','tweet_post','post_time','post_URL','article_name'])
-        writer = pd.ExcelWriter(r'sarath_2k17_CI.xlsx', engine='openpyxl',options={'strings_to_urls': False})
-        data_frame.to_excel(writer,sheet_name='Sheet_name'+str(n))
-        writer.save()
-        write.close()
-        print(data_frame.shape)
-        records=[]
+            page_range = "1"
+        page_link = []
+        for i in page_range:
+            #print(i)
+            page = url[:-1]+str(i)
+            #print(page)
+            page_link.append(page)
+        #print(page_link)     
+        for i in page_link:
+                    df2=urllib.request.urlopen(i).read()
+                    soup2 = bs.BeautifulSoup(df2, 'html.parser')
+                    post = soup2.find_all('article',{'class':'post twitter'})
+                    for tweets in post:
+                        tweet_post = tweets.find_all('p')[0].text
+                        #print(tweet_post)
+                        try:
+                            post_time = tweets.find_all('time')[0].text.strip()
+                            post_URL = tweets.time.a['href']
+                            profile_link=tweets.a['href']
+                            profile_name = tweets.find_all('div',{'class':'name'})[0].text
+                            display_name = tweets.find_all('div',{'class':'handle'})[0].text
+                        except:
+                            pass
+                        count+=1
+                        records.append((citation,altid,count,profile_link,profile_name,display_name,tweet_post,post_time,post_URL,article_title))
+        if(n%300==0):
+            path=r'sarath_2k16_CI.xlsx'
+            book=load_workbook(path)
+            data_frame= pd.DataFrame(records, columns=['citation','altid','count','profile_link','profile_name','display_name','tweet_post','post_time','post_URL','article_name'])
+            print(data_frame.shape)
+            writer = pd.ExcelWriter(path, engine='openpyxl',options={'strings_to_urls': False})
+            writer.book=book
+            data_frame.to_excel(writer,sheet_name='Sheet_name'+str(n))
+            writer.save()
+            writer.close()
+            records=[]
 
 except Exception as e:
     print(e)
     print("end of doc")
+
+#remaining records to new sheet    
+path=r'sarath_2k16_CI.xlsx'
+book=load_workbook(path)
+data_frame= pd.DataFrame(records, columns=['citation','altid','count','profile_link','profile_name','display_name','tweet_post','post_time','post_URL','article_name'])
+print(data_frame.shape)
+writer = pd.ExcelWriter(path, engine='openpyxl',options={'strings_to_urls': False})
+writer.book=book
+data_frame.to_excel(writer,sheet_name='Sheet_name'+str("remaining"))
+writer.save()
+writer.close()
+
+    
